@@ -1,12 +1,6 @@
 {
   "name": "root",
   "private": true,
-  "scripts": {
-    "dev": "(cd ./integration && make start-dbv)",
-    "undev": "(cd ./integration && make stop-db)",
-    "test": "(cd ./integration && make test)",
-    "tdd": "(cd ./integration && make run)"
-  },
   "devDependencies": {
     "lerna": "^3.14.0",
     "@babel/core": "^7.4.4"

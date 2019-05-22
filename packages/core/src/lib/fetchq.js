@@ -1,1 +1,1 @@
-console.log('FetchQ / Core')
+console.log('FetchQ / Core *2')

@@ -14,12 +14,19 @@
 #     make stop-db
 #
 
+# Makes sure the dependencies are correctly set up
+init:
+	(cd .. && yarn && lerna bootstrap)
+
+clean:
+	rm -rf ./node_modules
+
 # Starts the db completely into a Docker container
 start-db:
 	docker run \
 		-d \
 		--name fetchq-db-test \
-		-p 5432:5432 \
+		-p 5433:5432 \
 		-e POSTGRES_USER=postgres \
 		-e POSTGRES_PASSWORD=postgres \
 		-e POSTGRES_DB=postgres \
@@ -32,8 +39,8 @@ start-dbv:
 	docker run \
 		-d \
 		--name fetchq-db-test \
-		-v ${PWD}/data/pg:/var/lib/postgresql/data \
-		-p 5432:5432 \
+		-v ${PWD}/data/pg:/var/lib/postgresql/data:cached \
+		-p 5433:5432 \
 		-e POSTGRES_USER=postgres \
 		-e POSTGRES_PASSWORD=postgres \
 		-e POSTGRES_DB=postgres \
@@ -54,6 +61,6 @@ run: build
 	yarn test
 
 # Runs a full test session
-test: start-db run stop-db
+test: start-db init run stop-db
 		
 		
