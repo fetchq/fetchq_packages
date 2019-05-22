@@ -1,10 +1,10 @@
 {
   "name": "fetchq-integration-tests",
   "version": "0.0.0",
-  "description": "FetchQ Integration Tests",
+  "description": "We need this file to scope the jest execution",
   "main": "test1.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest ."
   },
   "author": "",
   "license": "ISC",
