@@ -4,9 +4,10 @@
   "description": "Development app",
   "main": "index.js",
   "scripts": {
-    "start:app": "nodemon index.js",
+    "start:app": "nodemon src/index.js",
     "start": "concurrently \"make watch\" \"yarn start:app\""
   },
+  "ignoreRoot": [""],
   "author": "",
   "license": "ISC",
   "devDependencies": {

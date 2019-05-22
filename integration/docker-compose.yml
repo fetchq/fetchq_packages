@@ -1,0 +1,23 @@
+version: '2.1'
+services:
+    database:
+        image: postgres:11.3-alpine
+        ports:
+            - ${POSTGRES_PORT:-5433}:5432
+        environment:
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=postgres
+            - POSTGRES_DB=postgres
+        command: -c shared_buffers=500MB -c fsync=off
+    
+    database-tdd:
+        image: postgres:11.3-alpine
+        ports:
+            - ${POSTGRES_PORT:-5432}:5432
+        volumes:
+            - ./data/pg:/var/lib/postgresql/data:cached
+        environment:
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=postgres
+            - POSTGRES_DB=postgres
+        command: -c shared_buffers=500MB -c fsync=off

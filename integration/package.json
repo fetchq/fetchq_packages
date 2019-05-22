@@ -4,11 +4,13 @@
   "description": "We need this file to scope the jest execution",
   "main": "test1.js",
   "scripts": {
-    "test": "jest ."
+    "test": "jest .",
+    "start": "concurrently \"make watch\" \"yarn test --watch\""
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "concurrently": "^4.1.0",
     "jest": "^24.8.0"
   }
 }

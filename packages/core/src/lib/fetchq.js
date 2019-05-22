@@ -1,1 +1,4 @@
-console.log('FetchQ / Core *2')
+console.log('FetchQ / Core')
+
+export default 1
+

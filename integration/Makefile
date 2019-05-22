@@ -23,34 +23,10 @@ clean:
 
 # Starts the db completely into a Docker container
 start-db:
-	docker run \
-		-d \
-		--name fetchq-db-test \
-		-p 5433:5432 \
-		-e POSTGRES_USER=postgres \
-		-e POSTGRES_PASSWORD=postgres \
-		-e POSTGRES_DB=postgres \
-		postgres:11.3-alpine \
-		-c shared_buffers=256MB \
-		-c fsync=off
-
-# Starts the db with a local data volume that you can investigate
-start-dbv:
-	docker run \
-		-d \
-		--name fetchq-db-test \
-		-v ${PWD}/data/pg:/var/lib/postgresql/data:cached \
-		-p 5433:5432 \
-		-e POSTGRES_USER=postgres \
-		-e POSTGRES_PASSWORD=postgres \
-		-e POSTGRES_DB=postgres \
-		postgres:11.3-alpine \
-		-c shared_buffers=256MB \
-		-c fsync=off
+	POSTGRES_PORT=5433 docker-compose up -d database
 
 stop-db:
-	docker stop fetchq-db-test
-	docker rm -f fetchq-db-test
+	docker-compose down
 
 # Forces freshly built dependencies into the next test execution
 build:
@@ -58,9 +34,19 @@ build:
 
 # Just executes the tests, it assumes there is a database running
 run: build
-	yarn test
+	POSTGRES_PORT=5433 yarn test
 
 # Runs a full test session
 test: start-db init run stop-db
 		
 		
+# Starts a TDD session
+# The database is connected to `./data/pg` and exposed to `5432`
+tdd:
+	POSTGRES_PORT=5432 docker-compose up -d database-tdd
+	POSTGRES_PORT=5432 yarn test --watch
+	docker-compose down
+
+# Forces freshly built dependencies into the next test execution
+watch:
+	(cd .. && TARGET=${PWD} lerna run watch:to)

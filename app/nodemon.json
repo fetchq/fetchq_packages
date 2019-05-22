@@ -1,0 +1,9 @@
+{
+    "verbose" : true,
+    "watch"   : [
+        "./node_modules/@fetchq",
+        "./src"
+    ],
+    "ext" : "js",
+    "ignoreRoot": [".git"]
+}

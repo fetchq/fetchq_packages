@@ -13,7 +13,7 @@ clean:
 	rm -rf ./node_modules
 
 #
-# CLI Interface to the working app
+# CLI Interface to the Working App
 #
 
 init-app:
@@ -27,17 +27,18 @@ stop-app:
 
 
 #
-# CLI Interface to the integration tests
+# CLI Interface to the Integration Tests
 #
+
+unit:
+	lerna run test
 
 test:
 	(cd ./integration && make test)
 
-start-tdd:
-	(cd ./integration && make run)
+tdd:
+	(cd ./integration && make tdd)
 
-stop-tdd:
-	(cd ./integration && make run)
+tdd-watch:
+	(cd ./integration && make watch)
 
-run-tdd:
-	(cd ./integration && make run)
