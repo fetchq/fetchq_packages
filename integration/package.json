@@ -1,0 +1,14 @@
+{
+  "name": "fetchq-integration-tests",
+  "version": "0.0.0",
+  "description": "FetchQ Integration Tests",
+  "main": "test1.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^24.8.0"
+  }
+}

@@ -2,7 +2,7 @@ const preset = require(`../`)
 
 jest.mock(`../resolver`, () => jest.fn(moduleName => moduleName))
 
-describe(`babel-preset-forrestjs-package`, () => {
+describe(`babel-preset-package`, () => {
     describe(`in node mode`, () => {
         it(`specifies the proper plugins`, () => {
             const { plugins } = preset()

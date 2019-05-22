@@ -1,20 +1,12 @@
 
 dev:
-	docker run \
-		-it \
-		--rm \
-		--name fetchq-db \
-		-p 5432:5432 \
-		-v ${PWD}/data/pg:/var/lib/postgresql/data \
-		-e POSTGRES_USER=postgres \
-		-e POSTGRES_PASSWORD=postgres \
-		-e POSTGRES_DB=postgres \
-		postgres:11.3-alpine
+	(cd ./integration && make start-dbv)
 
 undev:
-	docker stop fetchq-db && \
-	docker rm -f fetchq-db
+	(cd ./integration && make stop-db)
 
 test:
-	(cd ./tests && make run)
+	(cd ./integration && make run)
 	
+test-dev:
+	(cd ./integration && make test)
