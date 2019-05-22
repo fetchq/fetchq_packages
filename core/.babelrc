@@ -1,0 +1,5 @@
+{
+  "presets": [
+    ["@fetchq/babel-preset-package", { "browser": true }]
+  ]
+}
