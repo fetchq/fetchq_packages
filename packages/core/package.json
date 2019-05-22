@@ -1,7 +1,7 @@
 {
   "name": "@fetchq/core",
-  "description": "fetchq utilities for a nice SSR experience with React and ExpressJS.",
-  "version": "2.8.2",
+  "description": "FetchQ - turns Postgres into an fast distributed queue system.",
+  "version": "0.0.0",
   "scripts": {
     "clean": "rm -rf node_modules && rm -f yarn.lock && rm -f package-lock.json",
     "test": "jest",
@@ -17,8 +17,13 @@
   "devDependencies": {
     "@babel/cli": "^7.4.4",
     "@babel/core": "^7.4.4",
-    "@fetchq/babel-preset-package": "^0.0.0",
+    "@fetchq/babel-preset-package": "^0.0.1",
     "cross-env": "^5.1.4"
+  },
+  "babel": {
+    "presets": [
+      "@fetchq/babel-preset-package"
+    ]
   },
   "license": "MIT",
   "author": "Marco Pegoraro <marco.pegoraro@gmail.com",

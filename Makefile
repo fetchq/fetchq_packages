@@ -14,3 +14,7 @@ dev:
 undev:
 	docker stop fetchq-db && \
 	docker rm -f fetchq-db
+
+test:
+	(cd ./tests && make run)
+	
