@@ -1,0 +1,33 @@
+{
+  "name": "@fetchq/babel-preset-package",
+  "version": "0.0.0",
+  "author": "Marco Pegoraro <marco.pegoraro@gmail.com>",
+  "dependencies": {
+    "@babel/plugin-proposal-class-properties": "^7.4.4",
+    "@babel/plugin-proposal-optional-chaining": "^7.2.0",
+    "@babel/plugin-syntax-dynamic-import": "^7.2.0",
+    "@babel/plugin-transform-runtime": "^7.4.4",
+    "@babel/preset-env": "^7.4.4",
+    "@babel/preset-flow": "^7.0.0",
+    "@babel/preset-react": "^7.0.0",
+    "core-js": "3"
+  },
+  "license": "MIT",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rm -rf node_modules && rm -f yarn.lock && rm -f package-lock.json"
+  },
+  "homepage": "https://github.com/fetchq/fetchq/tree/master/packages/babel-preset-package#readme",
+  "repository": "https://github.com/fetchq/fetchq/tree/master/packages/babel-preset-package",
+  "bugs": {
+    "url": "https://github.com/fetchq/fetchq/issues"
+  },
+  "keywords": [
+    "fetchq",
+    "babel",
+    "preset"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
