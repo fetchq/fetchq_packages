@@ -1,6 +1,6 @@
 {
-  "name": "@fetchq/core",
-  "description": "FetchQ - turns Postgres into an fast distributed queue system.",
+  "name": "@fetchq/driver-memory",
+  "description": "FetchQ - in-memory implementation",
   "version": "0.0.0",
   "main": "lib/index.js",
   "scripts": {
@@ -13,7 +13,8 @@
     "prepare": "cross-env NODE_ENV=production npm run build"
   },
   "dependencies": {
-    "@babel/runtime": "^7.4.4"
+    "@babel/runtime": "^7.4.4",
+    "@fetchq/core": "^0.0.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.4.4",
@@ -28,11 +29,12 @@
   },
   "license": "MIT",
   "author": "Marco Pegoraro <marco.pegoraro@gmail.com",
-  "homepage": "https://github.com/fetchq/fetchq/tree/master/packages/core#readme",
+  "homepage": "https://github.com/fetchq/fetchq/tree/master/packages/driver-memory#readme",
   "repository": "https://github.com/fetchq/fetchq#readme",
   "keywords": [
     "fetchq",
-    "core"
+    "driver",
+    "memory"
   ],
   "bugs": {
     "url": "https://github.com/fetchq/fetchq/issues"

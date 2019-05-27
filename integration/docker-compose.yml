@@ -13,7 +13,7 @@ services:
     database-tdd:
         image: postgres:11.3-alpine
         ports:
-            - ${POSTGRES_PORT:-5432}:5432
+            - ${POSTGRES_PORT:-5433}:5432
         volumes:
             - ./data/pg:/var/lib/postgresql/data:cached
         environment:
