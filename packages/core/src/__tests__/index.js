@@ -1,4 +1,5 @@
 const fetchq = require('../lib/index')
+const { FetchQDriver } = require('../lib/interfaces')
 
 const {
     FetchQDuplicateClientError,
@@ -6,21 +7,16 @@ const {
     FetchQDuplicateDriverError,
 } = require('../lib/errors')
 
-class CustomDriver {
-    constructor (config) { this.config = config }
-    connect () {}
-    destroy () {}
-}
+class CustomDriver extends FetchQDriver {}
 
 describe(`@fetchq/core`, () => {
     beforeEach(async () => {
         await fetchq.destroyAll()
     })
 
-    it(`should start an in-memory client`, async () => {
-        expect.assertions(1)
-        await fetchq.connect({ driver: { type: CustomDriver }})
-        expect(fetchq.getStatus()).toBe(1)
+    it(`should start an empty client`, async () => {
+        const client = await fetchq.connect({ driver: { type: CustomDriver }})
+        await client.isReady()
     })
 
     it(`should NOT start the same client twice`, async () => {
@@ -46,8 +42,11 @@ describe(`@fetchq/core`, () => {
         expect.assertions(1)
         const mock = jest.fn()
 
-        class CustomDriver {
-            constructor (config) { this.config = config }
+        class CustomDriver extends FetchQDriver {
+            constructor (config) {
+                super(config)
+                this.config = config 
+            }
             connect () { mock(this.config) }
             destroy () {}
         }
@@ -61,10 +60,9 @@ describe(`@fetchq/core`, () => {
     })
 
     it(`should register a new driver`, async () => {
-        expect.assertions(1)
         fetchq.registerDriver('foo', CustomDriver)
-        await fetchq.connect({ driver: { type: 'foo' }})
-        expect(fetchq.getStatus()).toBe(1)
+        const client = await fetchq.connect({ driver: { type: 'foo' }})
+        await client.isReady()
     })
 
     it(`should NOT register the same driver twice`, async () => {
@@ -75,5 +73,14 @@ describe(`@fetchq/core`, () => {
         } catch (err) {
             expect(err).toBeInstanceOf(FetchQDuplicateDriverError)
         }
+    })
+
+    it(`should emit connection events`, async () => {
+        const client = fetchq.createClient({ driver: { type: CustomDriver }})
+        await new Promise(resolve => {
+            client.isReady().then(resolve)
+            client.connect()
+        })
+        await client.isReady()
     })
 })

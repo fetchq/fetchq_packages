@@ -6,10 +6,7 @@
  * from the outside.
  */
 
-// import { FetchQDriverMemory } from './driver.memory.class'
-// import { FetchQDriverLocal } from './driver.local.class'
 import { FetchQDriverNotFoundError, FetchQDuplicateDriverError } from './errors'
-export * from './driver.class'
 
 const drivers = {}
 
@@ -21,8 +18,7 @@ export const getDriver = (type = 'undefined') => {
     return drivers[type]
 }
 
-// @TODO: test that you should not be able to override
-// (consider to implement "overrideDriver()" for that purpose)
+// @TODO: consider to implement "overrideDriver()" for that purpose
 export const registerDriver = (type, implementation) => {
     if (drivers[type]) {
         throw new FetchQDuplicateDriverError(`driver "${type}" already defined`)
@@ -32,11 +28,11 @@ export const registerDriver = (type, implementation) => {
 
 // Accepts a named type that is matched in the "drivers" dictionary
 // or a custom implementation as Class (function)
-export const createDriver = (config = {}) => {
+export const createDriver = (config = {}, client) => {
     const { type, ...driverConfig } = config
     const Driver = typeof type === 'function'
         ? type
         : getDriver(type)
 
-    return new Driver(driverConfig)
+    return new Driver(driverConfig, client)
 }

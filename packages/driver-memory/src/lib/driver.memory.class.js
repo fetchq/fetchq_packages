@@ -10,6 +10,19 @@
  */
 
 import { FetchQDriver } from '@fetchq/core'
+import { FetchQQueueMemory } from './queue.memory.class'
 
-export class FetchQDriverMemory extends FetchQDriver {}
+export class FetchQDriverMemory extends FetchQDriver {
+    constructor (config) {
+        super (config)
+        this.queues = {}
+    }
+
+    async ref (name) {
+        if (!this.queues[name]) {
+            this.queues[name] = new FetchQQueueMemory(name)
+        }
+        return this.queues[name]
+    }
+}
 

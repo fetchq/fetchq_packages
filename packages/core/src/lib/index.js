@@ -8,10 +8,20 @@ import { FetchQDuplicateClientError, FetchQClientNotFoundError } from './errors'
 
 // Utilities that allows other modules to expand the Core
 export { registerDriver } from './drivers'
-export { FetchQDriver } from './driver.class'
+export * from './interfaces'
 
 const DEFAULT_CLIENT_NAME = 'default'
 const clients = {}
+
+let defaults = {
+    driver: {
+        type: 'memory',
+    }
+}
+
+export const setDefaults = (values = {}) => {
+    defaults = values
+}
 
 export const createClient = (config = {}) => {
     const name = config.name || DEFAULT_CLIENT_NAME
@@ -26,15 +36,30 @@ export const createClient = (config = {}) => {
 
 export const getClient = (name = DEFAULT_CLIENT_NAME) => {
     if (!clients[name]) {
-        throw new FetchQClientNotFoundError(`client "${name}" already defined`)
+        throw new FetchQClientNotFoundError(`client "${name}" not found`)
     }
     return clients[name]
+}
+
+// Retrive a client for active usage
+export const useClient = async (name = DEFAULT_CLIENT_NAME) => {
+    const client = clients[name] || createClient(defaults)
+    if (!client.isReady()) {
+        await client.connect()
+    }
+    return client
 }
 
 // Global access utilities
 // (fallback on the default client name)
 export const connect = (config) => createClient(config).connect()
 export const getStatus = (name) => getClient(name).getStatus()
+
+export const ref = async (queue) =>
+    (await useClient()).ref(queue)
+
+export const push = async (queue, docs) =>
+    (await ref(queue)).push(docs)
 
 // Mostly used for testing
 // disconnect and removes any existing client
@@ -44,10 +69,13 @@ export const destroyAll = async () => {
 }
 
 export default {
+    setDefaults,
     createClient,
     getClient,
     getStatus,
     connect,
     destroyAll,
+    ref,
+    push,
 }
 

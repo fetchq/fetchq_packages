@@ -13,4 +13,13 @@ describe(`@fetchq/driver-memory`, () => {
         await fetchq.connect({ driver: { type: 'memory' }})
         expect(fetchq.getStatus()).toBe(1)
     })
+
+    it(`should push a document into a queue`, async () => {
+        await fetchq.push('q1', [
+            { id: 'd1' },
+            { id: 'd2' },
+        ])
+
+        expect(fetchq.ref('q1').count()).toBe(2)
+    })
 })
