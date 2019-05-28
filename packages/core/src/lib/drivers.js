@@ -6,6 +6,7 @@
  * from the outside.
  */
 
+import { FetchQDriver } from './interfaces'
 import { FetchQDriverNotFoundError, FetchQDuplicateDriverError } from './errors'
 
 const drivers = {}
@@ -24,6 +25,11 @@ export const registerDriver = (type, implementation) => {
         throw new FetchQDuplicateDriverError(`driver "${type}" already defined`)
     }
     drivers[type] = implementation
+}
+
+// mostly for testing purpose
+export const unregisterDriver = (name) => {
+    delete(drivers[name])
 }
 
 // Accepts a named type that is matched in the "drivers" dictionary

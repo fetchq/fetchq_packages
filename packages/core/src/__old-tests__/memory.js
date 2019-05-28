@@ -62,7 +62,7 @@ class MemoryDriver extends FetchQDriver {
     }
 }
 
-describe('FetchQ Memory Driver', () => {
+describe.skip('FetchQ Memory Driver', () => {
     let client = null
 
     beforeEach(async () => {

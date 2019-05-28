@@ -9,61 +9,50 @@ export const EVENT_READY = 'ready'
 export class FetchQInit extends EventEmitter {
     constructor () {
         super()
-        this.status = 0
-        this.driver = null
+        this.status = STATUS_DEFAULT
     }
 
-    setDriver (driver) {
-        this.driver = driver
+    async init () {
+        this.status = STATUS_INITIALIZED
+        this.emit(EVENT_READY)
+        return this
     }
-
-    // should consolidate the queue in the memory system
-    // so that the other methods are going to work fine
-    // 
-    // it should turn "status" to "1"
-    // and emit "ready" event
-    async init () {}
 
     // removes all the event listeners that have been associated
     async destroy () {
         this.eventNames().forEach(name => this.removeAllListeners(name))
+        this.status = STATUS_DEFAULT
     }
 
-    // should return a promise that resolves once "init()"
-    // has consolidated the queue
     async isReady () {
-        return new Promise(resolve => {
+        return new Promise((resolve, reject) => {
             if (this.status === STATUS_INITIALIZED) {
                 resolve()
                 return
             }
-
+            
+            // wait for initialization to complete
             this.once(EVENT_READY, resolve)
+            
+            // auto initialize
+            if (this.status === STATUS_DEFAULT) {
+                this.init()
+            }
         })
     }
 }
 
 export class FetchQQueue extends FetchQInit {
-    async isReady () {
-        if (!this.driver) {
-            throw new Error('queue is missing driver')
-        }
-        
-        if (!this.driver.client) {
-            throw new Error('queue is missing client')
-        }
-
-        if (this.driver.client.status === STATUS_DEFAULT) {
-            await this.driver.client.connect()
-        }
-
-        return super.isReady()
+    constructor (name, client) {
+        super()
+        this.name = name
+        this.client = client
     }
 
-    // Pushes one or more documents with unique subject
-    async push (docs) {}
-
-    async count () {}
+    async isReady () {
+        await this.client.isReady()
+        return super.isReady()
+    }
 }
 
 export class FetchQDriver extends FetchQInit {
@@ -71,23 +60,13 @@ export class FetchQDriver extends FetchQInit {
         super()
         this.config = config
         this.client = client
+        this.queues = {}
+        this.queueConstructor = FetchQQueue
     }
 
-    // should consolidate the driver initialization stuff
-    // fileSystem: load data from disk and create queues
-    // postgres: load settings and create queues instances
-    async connect () {}
-
-    // @overridable
-    // how to create a new queue
-    createQueueRef (name) {
-        return new FetchQQueue(name)
-    }
-
-    ref (name) {
+    ref = queueName => {
         if (!this.queues[name]) {
-            this.queues[name] = this.createQueueRef(name)
-            this.queues[name].setDriver(this)
+            return this.queues[name] = new this.queueConstructor(queueName, this.client)
         }
         return this.queues[name]
     }

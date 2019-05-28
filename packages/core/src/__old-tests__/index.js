@@ -9,7 +9,7 @@ const {
 
 class CustomDriver extends FetchQDriver {}
 
-describe(`@fetchq/core`, () => {
+describe.skip(`@fetchq/core`, () => {
     beforeEach(async () => {
         await fetchq.destroyAll()
     })
