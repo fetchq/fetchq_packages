@@ -53,6 +53,44 @@ export class FetchQQueue extends FetchQInit {
         await this.client.isReady()
         return super.isReady()
     }
+
+    async push (docs) {
+        await this.isReady()
+        return { created: 0, skipped: 0 }
+    }
+
+    async get (subject) {
+        await this.isReady()
+        return {} // document
+    }
+
+    async pick () {
+        await this.isReady()
+        return []
+    }
+
+    async reschedule (doc, nextExecution) {
+        await this.isReady()
+        return this
+    }
+    
+    async complete (doc) {
+        await this.isReady()
+        return this
+    }
+    
+    async kill (doc) {
+        await this.isReady()
+        return this
+    }
+}
+
+FetchQQueue.status = {
+    PLANNED: 0,
+    PENDING: 1,
+    ACTIVE: 2,
+    COMPLETED: 3,
+    KILLED: -1,
 }
 
 export class FetchQDriver extends FetchQInit {
