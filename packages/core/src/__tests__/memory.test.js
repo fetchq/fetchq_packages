@@ -1,141 +1,8 @@
 import { FetchqClient } from '../lib/fetchq-client.class'
-import { FetchQDriver, FetchQQueue } from '../lib/interfaces'
-import { STATUS_INITIALIZING } from '../lib/interfaces'
-import { addTime, parse as parseDate } from '../lib/dates'
+import { FetchQQueue } from '../lib/interfaces'
+import { MemoryDriver } from '../lib/driver.memory'
 
 const pause = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms))
-
-const docStatus = date => date > new Date() ? FetchQQueue.status.PLANNED : FetchQQueue.status.PENDING
-
-const docDefaults = doc => {
-    const nextIteration = parseDate(doc.nextIteration)
-
-    return {
-        subject: doc.subject || 'jdhoe', // maybe uuid?
-        payload: doc.payload || {},
-        lastIteration: doc.lastIteration || null,
-        status: docStatus(nextIteration),
-        attempts: 0,
-        iterations: 0,
-        nextIteration,
-    }
-}
-
-const flatDocs = docs => {
-    const list = Object.keys(docs).map(subject => docs[subject])
-    list.sort((a, b) => a.nextIteration - b.nextIteration)
-    return list
-}
-
-class MemoryQueue extends FetchQQueue {
-    async init () {
-        this.status = STATUS_INITIALIZING
-        await pause()
-
-        this.docs = {}
-        this.list = []
-
-        return super.init()
-    }
-
-    async push (docs) {
-        const res = await super.push()
-
-        docs.forEach(doc => {
-            const { subject } = doc
-
-            if (this.docs[subject]) {
-                res.skipped++
-                return
-            }
-
-            this.docs[subject] = docDefaults(doc)
-            res.created++
-        })
-
-        this.list = flatDocs(this.docs)
-        return res
-    }
-
-    async get (subject) {
-        await super.get()
-
-        if (this.docs[subject]) {
-            return this.docs[subject]
-        }
-
-        throw new Error('document not found')
-    }
-
-    async pick ({ limit = 1, lock = '5m' } = {}) {
-        await super.pick()
-
-        const docs = this.list.slice(0, limit)
-            .map(doc => {
-                doc.nextIteration = addTime(Date.now(), lock)
-                doc.status = FetchQQueue.status.ACTIVE
-                doc.attempts += 1
-                return doc
-            })
-
-        this.list = flatDocs(this.docs)
-        return docs
-    }
-
-    async reschedule (doc, nextIterationPlan) {
-        await super.reschedule()
-
-        const { subject } = doc
-        const nextIteration = parseDate(nextIterationPlan)
-
-        this.docs[subject].nextIteration = nextIteration
-        this.docs[subject].lastIteration = parseDate()
-        this.docs[subject].status = docStatus(nextIteration)
-        this.docs[subject].attempts = 0
-        this.docs[subject].iterations += 1
-
-        return this
-    }
-
-    async complete (doc) {
-        await super.complete()
-
-        const { subject } = doc
-
-        this.docs[subject].lastIteration = parseDate()
-        this.docs[subject].status = FetchQQueue.status.COMPLETED
-        this.docs[subject].attempts = 0
-        this.docs[subject].iterations += 1
-
-        return this
-    }
-    
-    async kill (doc) {
-        await super.kill()
-
-        const { subject } = doc
-
-        this.docs[subject].lastIteration = parseDate()
-        this.docs[subject].status = FetchQQueue.status.KILLED
-        this.docs[subject].attempts = 0
-        this.docs[subject].iterations += 1
-
-        return this
-    }
-}
-
-class MemoryDriver extends  FetchQDriver {
-    constructor (config, client) {
-        super(config, client)
-        this.queueConstructor = MemoryQueue
-    }
-
-    async init () {
-        this.status = STATUS_INITIALIZING
-        await pause()
-        return super.init()
-    }
-}
 
 describe('FetchQ - in-memory driver', () => {
     let client = null
@@ -201,12 +68,33 @@ describe('FetchQ - in-memory driver', () => {
     
         test('Picking documents should lock them for a configurable amount of time', async () => {
             const docs = await q1.pick({ limit: 1, lock: '1s' })
-            expect(docs[0].nextIteration - new Date()).toBe(1000)
+            expect(docs[0].nextIteration - new Date()).toBeLessThanOrEqual(1000)
             expect(docs[0].attempts).toBe(1)
 
-            // next pick should be the other document
             const docs1 = await q1.pick({ limit: 1 })
             expect(docs1[0].subject).toBe('d1')
+        })
+
+        test(`"active" documents should not be picked`, async () => {
+            await q1.pick({ limit: 10 })
+            const docs = await q1.pick({ limit: 10 })
+            expect(docs.length).toBe(0)
+        })
+
+        test(`"completed" documents should not be picked ever again`, async () => {
+            const docs = await q1.pick({ limit: 10 })
+            await Promise.all(docs.map(doc => q1.complete(doc)))
+
+            const docs1 = await q1.pick({ limit: 10 })
+            expect(docs1.length).toBe(0)
+        })
+        
+        test(`"killed" documents should not be picked ever again`, async () => {
+            const docs = await q1.pick({ limit: 10 })
+            await Promise.all(docs.map(doc => q1.kill(doc)))
+
+            const docs1 = await q1.pick({ limit: 10 })
+            expect(docs1.length).toBe(0)
         })
 
         describe('Resolving Documents', () => {
@@ -251,10 +139,160 @@ describe('FetchQ - in-memory driver', () => {
                 expect(doc.attempts).toBe(0)
                 expect(doc.iterations).toBe(1)
             })
+            
+            test(`A document can be dropped from the queue`, async () => {
+                await q1.drop(docs[0])
+                const doc = await q1.get(docs[0].subject)
+                expect(doc).toBe(null)
+
+                const stats = await q1.stats()
+                expect(stats.drp).toBe(1)
+            })
         })
 
-        // test(`"active" documents should not be picked`)
-        // test(`"completed" documents should not be picked ever again`)
-        // test(`"killed" documents should not be picked ever again`)
+        describe('Rejecting Documents', () => {
+            let docs = null
+
+            beforeEach(async () => {
+                docs = await q1.pick({ limit: 1 })
+            })
+
+            test('A picked document should be rejected', async () => {
+                await q1.reject(docs[0], new Error('foo'))
+                const doc = await q1.get(docs[0].subject)
+                expect(doc.status).toBe(FetchQQueue.status.PLANNED)
+                expect(doc.attempts).toBe(1)
+                expect(doc.iterations).toBe(1)
+            })
+
+            test('A picked document should be rejected with a nextIteration date', async () => {
+                const nextIteration = new Date(Date.now() - 1000)
+                await q1.reject(docs[0], new Error('foo'), nextIteration)
+                const doc = await q1.get(docs[0].subject)
+                expect(doc.status).toBe(FetchQQueue.status.PENDING)
+                expect(doc.attempts).toBe(1)
+                expect(doc.iterations).toBe(1)
+                expect(doc.nextIteration).toEqual(nextIteration)
+            })
+
+            test('Attempts should grow if the documents fails multiple times', async () => {
+                const nextIteration = new Date('1000-01-01')
+                await q1.reject(docs[0], new Error('foo'), nextIteration)
+
+                const docs1 = await q1.pick()
+                await q1.reject(docs1[0], new Error('foo'), nextIteration)
+                
+                const doc = await q1.get(docs1[0].subject)
+                expect(doc.attempts).toBe(2)
+                expect(doc.iterations).toBe(2)
+            })
+
+            test('Too many rejections kill the document', async () => {
+                await q1.applySettings({ tolerance: 0 })
+                await q1.reject(docs[0], new Error('foo'))
+                const doc = await q1.get(docs[0].subject)
+                expect(doc.status).toBe(FetchQQueue.status.KILLED)
+            })
+        })
+
+        describe(`Stats`, () => {
+            test(`It should provide basic queue stats`, async () => {
+                const stats = await q1.stats()
+                expect(stats).toEqual({
+                    // time based
+                    cnt: 3,
+                    pkd: 0,
+                    drp: 0,
+                    err: 0,
+                    // status count
+                    pln: 1,
+                    pnd: 2,
+                    act: 0,
+                    cpl: 0,
+                    kll: 0,
+                })
+            })
+        })
+    })
+
+    describe(`Workers`, () => {
+        let q1 = null
+
+        beforeEach(async () => {
+            q1 = client.ref('q1')
+            await q1.push([
+                { subject: 'd1', nextIteration: new Date('2018-05-30') },
+                { subject: 'd2', nextIteration: new Date('2018-05-29') },
+                { subject: 'd3', nextIteration: new Date('3018-05-29') },
+            ])    
+        })
+
+        test(`A worker should reschedule an entire queue`, async () => {
+            const worker = q1.registerWorker(
+                (doc, { reschedule }) => reschedule('1y'),
+                { delay: 1, batch: 10 }
+            )
+
+            try {
+                await new Promise(resolve =>
+                    setInterval(async () => {
+                        const stats = await q1.stats()
+                        if (stats.pnd === 0 && stats.act === 0) resolve()
+                    }, 10))
+            } catch (err) {}
+
+            await worker.unregister()
+        })
+        
+        test(`A worker should complete an entire queue`, async () => {
+            const worker = q1.registerWorker(
+                (doc, { complete }) => complete(),
+                { delay: 1, batch: 10 }
+            )
+
+            try {
+                await new Promise(resolve =>
+                    setInterval(async () => {
+                        const stats = await q1.stats()
+                        if (stats.cpl === 2) resolve()
+                    }, 10))
+            } catch (err) {}
+
+            await worker.unregister()
+        })
+
+        test(`A worker should kill an entire queue`, async () => {
+            const worker = q1.registerWorker(
+                (doc, { kill }) => kill(),
+                { delay: 1, batch: 10 }
+            )
+
+            try {
+                await new Promise(resolve =>
+                    setInterval(async () => {
+                        const stats = await q1.stats()
+                        if (stats.kll === 2) resolve()
+                    }, 10))
+            } catch (err) {}
+
+            await worker.unregister()
+        })
+        
+        test(`A worker should reject an entire queue`, async () => {
+            const worker = q1.registerWorker(
+                (doc, { reject }) => reject(),
+                { delay: 1, batch: 10 }
+            )
+
+            try {
+                await new Promise(resolve =>
+                    setInterval(async () => {
+                        const stats = await q1.stats()
+                        if (stats.err === 2) resolve()
+                    }, 10))
+            } catch (err) {}
+
+            await worker.unregister()
+        })
     })
 })

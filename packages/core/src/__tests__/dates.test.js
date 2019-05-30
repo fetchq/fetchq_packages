@@ -48,8 +48,11 @@ describe('dates', () => {
             expect(d1 - now).toBe(1000)
         })
 
+        // there may be a millisecond of difference
         test(`It should accept an empty value`, () => {
-            expect(dates.parse()).toEqual(new Date())
+            const d1 = Math.floor(dates.parse().getTime() / 10)
+            const d2 = Math.floor(Date.now() / 10)
+            expect(d1).toBe(d2)
         })
     })
 })

@@ -1,4 +1,5 @@
 import EventEmitter from 'events'
+import { FetchQWorker } from './worker.class'
 
 export const STATUS_DEFAULT = 0
 export const STATUS_INITIALIZING = 1
@@ -47,11 +48,35 @@ export class FetchQQueue extends FetchQInit {
         super()
         this.name = name
         this.client = client
+
+        this.settings = {}
+        this.workers = []
     }
 
     async isReady () {
         await this.client.isReady()
         return super.isReady()
+    }
+
+    // this has the responsibility of coordinating the change in settings
+    async applySettings (settings) {
+        await this.client.isReady()
+        // client should notify that the queue is paused for all the
+        // other connected clients???
+        // how do we handle that in postgres???
+        await Promise.all(this.workers.map(worker => worker.pause()))
+        await this.flowSettings(settings)
+        await Promise.all(this.workers.map(worker => worker.resume()))
+    }
+
+    // this has the responsibility of actually changin the settings
+    // in Postgres it will probably rewrite the server functions for the queue
+    // and update the settings table
+    async flowSettings (settings = {}) {
+        this.settings = {
+            ...this.settings,
+            ...settings,
+        }
     }
 
     async push (docs) {
@@ -69,7 +94,12 @@ export class FetchQQueue extends FetchQInit {
         return []
     }
 
-    async reschedule (doc, nextExecution) {
+    async reschedule (doc, nextIteration) {
+        await this.isReady()
+        return this
+    }
+    
+    async reject (doc, nextIteration) {
         await this.isReady()
         return this
     }
@@ -82,6 +112,36 @@ export class FetchQQueue extends FetchQInit {
     async kill (doc) {
         await this.isReady()
         return this
+    }
+    
+    async drop (doc) {
+        await this.isReady()
+        return this
+    }
+
+    async stats () {
+        await this.isReady()
+        return {
+            cnt: 0,
+            pln: 0,
+            pnd: 0,
+            act: 0,
+            cpl: 0,
+            kll: 0,
+            err: 0,
+        }
+    }
+
+    registerWorker (handler, settings) {
+        const worker = new FetchQWorker(this, handler, settings)
+        worker.start()
+        worker.unregister = async () => {
+            await worker.destroy()
+            this.workers.splice(this.workers.indexOf(worker), 1)
+        }
+
+        this.workers.push(worker)
+        return worker
     }
 }
 
