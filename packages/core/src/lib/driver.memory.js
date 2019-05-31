@@ -20,18 +20,15 @@ const docDefaults = doc => {
     }
 }
 
+// Produces a sorted list of pending documents
 const flatDocs = docs => {
-    const list = Object.keys(docs).map(subject => docs[subject])
+    const list = Object.keys(docs)
+        .map(subject => docs[subject])
+        .filter(doc => doc.status === FetchQQueue.status.PENDING)
+
     list.sort((a, b) => a.nextIteration - b.nextIteration)
     return list
 }
-
-const PICKABLE_STATUSES = [
-    FetchQQueue.status.ACTIVE,
-    FetchQQueue.status.COMPLETED,
-    FetchQQueue.status.KILLED,
-    FetchQQueue.status.PLANNED,
-]
 
 export class MemoryQueue extends FetchQQueue {
     async init () {
@@ -72,7 +69,7 @@ export class MemoryQueue extends FetchQQueue {
         this.list = flatDocs(this.docs)
 
         if (hasPending) {
-            this.emit('push::pending')
+            this.emit('pending')
         }
 
         return res
@@ -92,7 +89,6 @@ export class MemoryQueue extends FetchQQueue {
         await super.pick()
 
         const docs = this.list
-            .filter(doc => !PICKABLE_STATUSES.includes(doc.status))
             .slice(0, limit)
             .map(doc => {
                 doc.nextIteration = addTime(Date.now(), lock)
@@ -183,7 +179,7 @@ export class MemoryQueue extends FetchQQueue {
     async stats () {
         const res = await super.stats()
 
-        this.list.forEach(doc => {
+        Object.values(this.docs).forEach(doc => {
             switch (doc.status) {
                 case FetchQQueue.status.PLANNED:
                     res.pln += 1
@@ -206,8 +202,27 @@ export class MemoryQueue extends FetchQQueue {
         return {
             ...res,
             ...this.counters,
-            cnt: this.list.length,
+            cnt: Object.keys(this.docs).length,
         }
+    }
+
+    async mntMakePending (settings = {}) {
+        const res = await super.mntMakePending(settings)
+
+        Object.values(this.docs).forEach(doc => {
+            if (doc.status !== FetchQQueue.status.PLANNED) return
+            if (doc.nextIteration > Date.now()) return
+            doc.status = FetchQQueue.status.PENDING
+            res.affected += 1
+        })
+
+        this.list = flatDocs(this.docs)
+
+        if (res.affected) {
+            this.emit('pending')
+        }
+
+        return res
     }
 }
 

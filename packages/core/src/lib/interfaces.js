@@ -26,7 +26,7 @@ export class FetchQInit extends EventEmitter {
     }
 
     async isReady () {
-        return new Promise((resolve, reject) => {
+        return new Promise(resolve => {
             if (this.status === STATUS_INITIALIZED) {
                 resolve(this)
                 return
@@ -34,7 +34,7 @@ export class FetchQInit extends EventEmitter {
             
             // wait for initialization to complete
             this.once(EVENT_READY, () => resolve(this))
-            
+
             // auto initialize
             if (this.status === STATUS_DEFAULT) {
                 this.init()
@@ -132,6 +132,11 @@ export class FetchQQueue extends FetchQInit {
         }
     }
 
+    async mntMakePending (settings = {}) {
+        await this.isReady()
+        return { affected: 0 }
+    }
+
     registerWorker (handler, settings) {
         const worker = new FetchQWorker(this, handler, settings)
         worker.start()
@@ -142,6 +147,10 @@ export class FetchQQueue extends FetchQInit {
 
         this.workers.push(worker)
         return worker
+    }
+
+    async destroy () {
+        await Promise.all(this.workers.map(worker => worker.destroy()))
     }
 }
 
@@ -168,6 +177,11 @@ export class FetchQDriver extends FetchQInit {
             return this.queues[queueName]
         }
         return this.queues[queueName]
+    }
+
+    async destroy () {
+        await Promise.all(Object.values(this.queues).map(queue => queue.destroy()))
+        return super.destroy()
     }
 }
 

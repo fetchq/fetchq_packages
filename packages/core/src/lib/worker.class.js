@@ -15,7 +15,7 @@ export class FetchQWorker {
         this.__timeout = null
 
         // Quit sleep in case new documents appear in the queue
-        this.queue.on('push::pending', () => {
+        this.queue.on('pending', () => {
             if (this.isSleeping === true) {
                 // console.log('break sleep')
                 clearTimeout(this.__timeout)

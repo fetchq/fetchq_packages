@@ -1,18 +1,32 @@
 import { FetchqClient } from '../lib/fetchq-client.class'
 import { FetchQQueue } from '../lib/interfaces'
 import { MemoryDriver } from '../lib/driver.memory'
+import { addTime } from '../lib/dates'
 
 const pause = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms))
+
+const createClient = () =>
+    new FetchqClient({
+        driver: {
+            type: MemoryDriver,
+        },
+    })
+
+const queueStatus = (queue, isReady) =>
+    new Promise(resolve => {
+        let timer = setInterval(async () => {
+            if (isReady(await queue.stats())) {
+                clearInterval(timer)
+                resolve()
+            }
+        }, 10)
+    })
 
 describe('FetchQ - in-memory driver', () => {
     let client = null
 
     beforeEach(() => {
-        client = new FetchqClient({
-            driver: {
-                type: MemoryDriver,
-            },
-        })
+        client = createClient()
     })
 
     afterEach(async () => {
@@ -200,24 +214,58 @@ describe('FetchQ - in-memory driver', () => {
                 expect(doc.status).toBe(FetchQQueue.status.KILLED)
             })
         })
+    })
 
-        describe(`Stats`, () => {
-            test(`It should provide basic queue stats`, async () => {
-                const stats = await q1.stats()
-                expect(stats).toEqual({
-                    // time based
-                    cnt: 3,
-                    pkd: 0,
-                    drp: 0,
-                    err: 0,
-                    // status count
-                    pln: 1,
-                    pnd: 2,
-                    act: 0,
-                    cpl: 0,
-                    kll: 0,
-                })
+    describe(`Stats`, () => {
+        let q1 = null
+
+        beforeEach(async () => {
+            q1 = client.ref('q1')
+            await q1.push([
+                { subject: 'd1', nextIteration: new Date('2018-05-30') },
+                { subject: 'd2', nextIteration: new Date('2018-05-29') },
+                { subject: 'd3', nextIteration: new Date('3018-05-29') },
+            ])    
+        })
+
+        test(`It should provide basic queue stats`, async () => {
+            const stats = await q1.stats()
+            expect(stats).toEqual({
+                // time based
+                cnt: 3,
+                pkd: 0,
+                drp: 0,
+                err: 0,
+                // status count
+                pln: 1,
+                pnd: 2,
+                act: 0,
+                cpl: 0,
+                kll: 0,
             })
+        })
+    })
+
+    describe(`Maintenance`, () => {
+        let q1 = null
+
+        beforeEach(async () => {
+            q1 = client.ref('q1')
+            await q1.push([
+                { subject: 'd1', nextIteration: addTime('now') },
+                { subject: 'd2', nextIteration: addTime('now', '15ms') },
+                { subject: 'd3', nextIteration: addTime('now', -1000) },
+            ])    
+        })
+
+        test(`It should change a document status from PLANNED to PENDING`, async () => {
+            expect(await q1.pick({ limit: 10 })).toHaveLength(2)
+
+            await pause(20)
+            const res = await q1.mntMakePending()
+
+            expect(res).toEqual({ affected: 1 })
+            expect(await q1.pick({ limit: 10 })).toHaveLength(1)
         })
     })
 
@@ -234,71 +282,39 @@ describe('FetchQ - in-memory driver', () => {
         })
 
         test(`A worker should reschedule an entire queue`, async () => {
-            const worker = q1.registerWorker(
+            q1.registerWorker(
                 (doc, { reschedule }) => reschedule('1y'),
                 { delay: 1, batch: 10 }
             )
 
-            try {
-                await new Promise(resolve =>
-                    setInterval(async () => {
-                        const stats = await q1.stats()
-                        if (stats.pnd === 0 && stats.act === 0) resolve()
-                    }, 10))
-            } catch (err) {}
-
-            await worker.unregister()
+            await queueStatus(q1, ({ pnd, act }) => pnd + act === 0)
         })
         
         test(`A worker should complete an entire queue`, async () => {
-            const worker = q1.registerWorker(
+            q1.registerWorker(
                 (doc, { complete }) => complete(),
                 { delay: 1, batch: 10 }
             )
 
-            try {
-                await new Promise(resolve =>
-                    setInterval(async () => {
-                        const stats = await q1.stats()
-                        if (stats.cpl === 2) resolve()
-                    }, 10))
-            } catch (err) {}
-
-            await worker.unregister()
+            await queueStatus(q1, ({ cpl }) => cpl === 2)
         })
 
         test(`A worker should kill an entire queue`, async () => {
-            const worker = q1.registerWorker(
+            q1.registerWorker(
                 (doc, { kill }) => kill(),
                 { delay: 1, batch: 10 }
             )
 
-            try {
-                await new Promise(resolve =>
-                    setInterval(async () => {
-                        const stats = await q1.stats()
-                        if (stats.kll === 2) resolve()
-                    }, 10))
-            } catch (err) {}
-
-            await worker.unregister()
+            await queueStatus(q1, ({ kll }) => kll === 2)
         })
         
         test(`A worker should reject an entire queue`, async () => {
-            const worker = q1.registerWorker(
+            q1.registerWorker(
                 (doc, { reject }) => reject(),
                 { delay: 1, batch: 10 }
             )
 
-            try {
-                await new Promise(resolve =>
-                    setInterval(async () => {
-                        const stats = await q1.stats()
-                        if (stats.err === 2) resolve()
-                    }, 10))
-            } catch (err) {}
-
-            await worker.unregister()
+            await queueStatus(q1, ({ err }) => err === 2)
         })
 
         test(`A worker should promply pick a recently added document`, async () => {
@@ -311,15 +327,22 @@ describe('FetchQ - in-memory driver', () => {
 
             setTimeout(async () => q2.push([{ subject: 'd1' }]))
 
-            try {
-                await new Promise(resolve =>
-                    setInterval(async () => {
-                        const stats = await q2.stats()
-                        if (stats.cpl == 1) resolve()
-                    }, 10))
-            } catch (err) {}
+            await queueStatus(q2, ({ cpl }) => cpl === 1)
         })
 
-        
+        test(`A document that becomes pending should wake up a sleeping worker`, async () => {
+            const q2 = await client.ref('q2').isReady()
+            await q2.push([{ subject: 'd1', nextIteration: addTime('now', '5ms') }])
+
+            q2.registerWorker(
+                (doc, { complete }) => complete(),
+                { delay: 10000, sleep: 10000 }
+            )
+
+            await pause(10)
+            await q2.mntMakePending()
+            
+            await queueStatus(q2, ({ cpl }) => cpl === 1)
+        })
     })
 })
