@@ -137,6 +137,15 @@ export class FetchQQueue extends FetchQInit {
         return { affected: 0 }
     }
 
+    async mntRescheduleOrphans (settings = {}) {
+        await this.isReady()
+        return { affected: 0 }
+    }
+    async mntKillOrphans (settings = {}) {
+        await this.isReady()
+        return { affected: 0 }
+    }
+
     registerWorker (handler, settings) {
         const worker = new FetchQWorker(this, handler, settings)
         worker.start()

@@ -253,7 +253,7 @@ describe('FetchQ - in-memory driver', () => {
             q1 = client.ref('q1')
             await q1.push([
                 { subject: 'd1', nextIteration: addTime('now') },
-                { subject: 'd2', nextIteration: addTime('now', '15ms') },
+                { subject: 'd2', nextIteration: addTime('now', '5ms') },
                 { subject: 'd3', nextIteration: addTime('now', -1000) },
             ])    
         })
@@ -261,11 +261,25 @@ describe('FetchQ - in-memory driver', () => {
         test(`It should change a document status from PLANNED to PENDING`, async () => {
             expect(await q1.pick({ limit: 10 })).toHaveLength(2)
 
-            await pause(20)
+            await pause(5)
             const res = await q1.mntMakePending()
 
             expect(res).toEqual({ affected: 1 })
             expect(await q1.pick({ limit: 10 })).toHaveLength(1)
+        })
+
+        test(`It should reschedule orphans`, async () => {
+            await q1.pick({ limit: 10, lock: '1ms' })
+            await pause(1)
+            expect(await q1.mntRescheduleOrphans()).toEqual({ affected: 2 })
+        })
+
+        test(`It should kill documents based on tolerance`, async () => {
+            await q1.applySettings({ tolerance: 0 })
+            await q1.pick({ limit: 1, lock: '1ms' })
+            await pause(1)
+            expect(await q1.mntRescheduleOrphans()).toEqual({ affected: 0 })
+            expect(await q1.mntKillOrphans()).toEqual({ affected: 1 })
         })
     })
 

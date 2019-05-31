@@ -208,10 +208,11 @@ export class MemoryQueue extends FetchQQueue {
 
     async mntMakePending (settings = {}) {
         const res = await super.mntMakePending(settings)
+        const now = Date.now()
 
         Object.values(this.docs).forEach(doc => {
             if (doc.status !== FetchQQueue.status.PLANNED) return
-            if (doc.nextIteration > Date.now()) return
+            if (doc.nextIteration > now) return
             doc.status = FetchQQueue.status.PENDING
             res.affected += 1
         })
@@ -222,6 +223,44 @@ export class MemoryQueue extends FetchQQueue {
             this.emit('pending')
         }
 
+        return res
+    }
+
+    async mntRescheduleOrphans (settings = {}) {
+        const res = await super.mntMakePending(settings)
+        const now = Date.now()
+
+        Object.values(this.docs).forEach(doc => {
+            if (doc.status !== FetchQQueue.status.ACTIVE) return
+            if (doc.nextIteration > now) return
+            if (doc.attempts >= this.settings.tolerance) return
+
+            doc.status = FetchQQueue.status.PENDING
+            res.affected += 1
+        })
+
+        this.list = flatDocs(this.docs)
+
+        if (res.affected) {
+            this.emit('pending')
+        }
+
+        return res
+    }
+    
+    async mntKillOrphans (settings = {}) {
+        const res = await super.mntMakePending(settings)
+        const now = Date.now()
+
+        Object.values(this.docs).forEach(doc => {
+            if (doc.status !== FetchQQueue.status.ACTIVE) return
+            if (doc.attempts < this.settings.tolerance) return
+
+            doc.status = FetchQQueue.status.KILLED
+            res.affected += 1
+        })
+
+        this.list = flatDocs(this.docs)
         return res
     }
 }
