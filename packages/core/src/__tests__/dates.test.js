@@ -45,7 +45,7 @@ describe('dates', () => {
         test(`It should parse from a relative amound of time`, () => {
             const now = new Date()
             const d1 = dates.parse('1s')
-            expect(d1 - now).toBe(1000)
+            expect(Math.floor((d1 - now) / 10)).toBe(100)
         })
 
         // there may be a millisecond of difference

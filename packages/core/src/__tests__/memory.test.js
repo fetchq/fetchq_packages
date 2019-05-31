@@ -44,6 +44,12 @@ describe('FetchQ - in-memory driver', () => {
         expect(res).toEqual({ created: 2, skipped: 1 })
     })
 
+    test(`A client should be able to handle multiple independent queues`, async () => {
+        const q1 = client.ref('q1')
+        const q2 = client.ref('q2')
+        expect(q1).not.toBe(q2)
+    })
+
     describe('Documents Handling', () => {
         let q1 = null
 
@@ -294,5 +300,26 @@ describe('FetchQ - in-memory driver', () => {
 
             await worker.unregister()
         })
+
+        test(`A worker should promply pick a recently added document`, async () => {
+            const q2 = await client.ref('q2').isReady()
+
+            q2.registerWorker(
+                (doc, { complete }) => complete(),
+                { delay: 10000, sleep: 10000 }
+            )
+
+            setTimeout(async () => q2.push([{ subject: 'd1' }]))
+
+            try {
+                await new Promise(resolve =>
+                    setInterval(async () => {
+                        const stats = await q2.stats()
+                        if (stats.cpl == 1) resolve()
+                    }, 10))
+            } catch (err) {}
+        })
+
+        
     })
 })

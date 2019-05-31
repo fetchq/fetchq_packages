@@ -11,7 +11,17 @@ export class FetchQWorker {
         this.docs = []
 
         this.isRunning = false
+        this.isSleeping = false
         this.__timeout = null
+
+        // Quit sleep in case new documents appear in the queue
+        this.queue.on('push::pending', () => {
+            if (this.isSleeping === true) {
+                // console.log('break sleep')
+                clearTimeout(this.__timeout)
+                this.loop()
+            }
+        })
     }
 
     async start () {
@@ -44,6 +54,8 @@ export class FetchQWorker {
     }
 
     async loop () {
+        this.isSleeping = false
+
         if (!this.isRunning) {
             clearTimeout(this.__timeout)
             return
@@ -59,6 +71,7 @@ export class FetchQWorker {
         //        and sleep until that moment, even for years :-)
         if (!this.docs.length) {
             // console.log('no documents, sleep for', this.sleep)
+            this.isSleeping = true
             this.__timeout = setTimeout(() => this.loop(), this.sleep)
             return
         }

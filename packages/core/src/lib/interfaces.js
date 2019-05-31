@@ -28,12 +28,12 @@ export class FetchQInit extends EventEmitter {
     async isReady () {
         return new Promise((resolve, reject) => {
             if (this.status === STATUS_INITIALIZED) {
-                resolve()
+                resolve(this)
                 return
             }
             
             // wait for initialization to complete
-            this.once(EVENT_READY, resolve)
+            this.once(EVENT_READY, () => resolve(this))
             
             // auto initialize
             if (this.status === STATUS_DEFAULT) {
@@ -163,10 +163,11 @@ export class FetchQDriver extends FetchQInit {
     }
 
     ref = queueName => {
-        if (!this.queues[name]) {
-            return this.queues[name] = new this.queueConstructor(queueName, this.client)
+        if (!this.queues[queueName]) {
+            this.queues[queueName] = new this.queueConstructor(queueName, this.client)
+            return this.queues[queueName]
         }
-        return this.queues[name]
+        return this.queues[queueName]
     }
 }
 

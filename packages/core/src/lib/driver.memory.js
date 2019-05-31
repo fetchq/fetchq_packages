@@ -54,6 +54,7 @@ export class MemoryQueue extends FetchQQueue {
 
     async push (docs) {
         const res = await super.push()
+        let hasPending = false
 
         docs.forEach(doc => {
             const { subject } = doc
@@ -64,10 +65,16 @@ export class MemoryQueue extends FetchQQueue {
             }
 
             this.docs[subject] = docDefaults(doc)
+            hasPending = hasPending || this.docs[subject].status === FetchQQueue.status.PENDING
             res.created++
         })
 
         this.list = flatDocs(this.docs)
+
+        if (hasPending) {
+            this.emit('push::pending')
+        }
+
         return res
     }
 
