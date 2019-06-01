@@ -253,7 +253,7 @@ describe('FetchQ - in-memory driver', () => {
             q1 = client.ref('q1')
             await q1.push([
                 { subject: 'd1', nextIteration: addTime('now') },
-                { subject: 'd2', nextIteration: addTime('now', '5ms') },
+                { subject: 'd2', nextIteration: addTime('now', '15ms') },
                 { subject: 'd3', nextIteration: addTime('now', -1000) },
             ])    
         })
@@ -261,7 +261,7 @@ describe('FetchQ - in-memory driver', () => {
         test(`It should change a document status from PLANNED to PENDING`, async () => {
             expect(await q1.pick({ limit: 10 })).toHaveLength(2)
 
-            await pause(5)
+            await pause(15)
             const res = await q1.mntMakePending()
 
             expect(res).toEqual({ affected: 1 })
@@ -357,6 +357,17 @@ describe('FetchQ - in-memory driver', () => {
             await q2.mntMakePending()
             
             await queueStatus(q2, ({ cpl }) => cpl === 1)
+        })
+    })
+
+    describe(`Client management queue`, () => {
+        test(`It should run management tasks`, async () => {
+            const client = createClient()
+            await client.ref('q1').push([{ subject: 'foo' }])
+            console.log('client ready')
+
+            await pause(50)
+            await client.destroy()
         })
     })
 })

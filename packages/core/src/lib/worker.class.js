@@ -4,8 +4,8 @@ export class FetchQWorker {
         this.queue = queue
         this.handler = handler
 
-        this.delay = settings.delay || 1000
-        this.sleep = settings.sleep || 5000
+        this.delay = settings.delay || 0
+        this.sleep = settings.sleep || 1000
         this.batch = settings.batch || 1
 
         this.docs = []
@@ -16,6 +16,7 @@ export class FetchQWorker {
 
         // Quit sleep in case new documents appear in the queue
         this.queue.on('pending', () => {
+            // console.log('**** receive PENDi')
             if (this.isSleeping === true) {
                 // console.log('break sleep')
                 clearTimeout(this.__timeout)
