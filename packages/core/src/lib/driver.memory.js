@@ -7,8 +7,8 @@ export * from './driver.memory.queue'
 export * from './driver.memory.maintenance'
 
 export class MemoryDriver extends  FetchQDriver {
-    constructor (config, client) {
-        super(config, client)
+    constructor (client, config) {
+        super(client, config)
         this.queueConstructor = MemoryQueue
         this.maintenanceConstructor = MemoryMaintenance
     }

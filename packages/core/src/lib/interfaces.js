@@ -7,18 +7,20 @@ export * from './interfaces.fetchq-queue'
 export * from './interfaces.fetchq-maintenance'
 
 export class FetchQDriver extends FetchQInit {
-    constructor (config, client) {
+    constructor (client, config = {}) {
         super()
-        this.config = config
         this.client = client
+        this.config = config
+
         this.queues = {}
         this.mntQueue = null
         this.queueConstructor = FetchQQueue
-        this.maintenanceConstructor =  FetchQMaintenance
+        this.maintenanceConstructor = FetchQMaintenance
+        this.maintenanceConfig = {}
     }
 
     async init () {
-        this.maintenance = new this.maintenanceConstructor(this.client)
+        this.maintenance = new this.maintenanceConstructor(this.client, this.maintenanceConfig)
         await this.maintenance.init()
 
         return super.init()
@@ -26,7 +28,7 @@ export class FetchQDriver extends FetchQInit {
 
     ref = queueName => {
         if (!this.queues[queueName]) {
-            this.queues[queueName] = new this.queueConstructor(queueName, this.client)
+            this.queues[queueName] = new this.queueConstructor(this.client, queueName)
             return this.queues[queueName]
         }
         return this.queues[queueName]

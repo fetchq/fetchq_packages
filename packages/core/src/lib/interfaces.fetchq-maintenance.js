@@ -4,7 +4,7 @@ import { FetchQWorker } from './worker.class'
 // This queue should be much simpler and ger documents from the older move on
 // there should be only 3-5 documents per queue so it doesn't need much optimization nor stats
 export class FetchQMaintenance extends FetchQInit {
-    constructor (client) {
+    constructor (client, config = {}) {
         super()
         this.name = 'mnt'
         this.client = client
@@ -36,16 +36,20 @@ export class FetchQMaintenance extends FetchQInit {
     }
 
     async init () {
-        // console.log('INIT MAINTENANCE')
         if (this.client.runMaintenance) {
-            this.registerWorker(this.workerHandler, this.workerSettings)
+            const { mntWorkerDelay: delay, mntWorkerSleep: sleep } = this.client.config
+            this.registerWorker(this.workerHandler, {
+                ...this.workerSettings,
+                ...(delay ? { delay } : {}),
+                ...(sleep ? { sleep } : {}),
+            })
         }
 
         return super.init()
     }
 
     async isReady () {
-        // await this.client.isReady()
+        await this.client.isReady()
         return super.isReady()
     }
 

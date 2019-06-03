@@ -12,6 +12,8 @@ export class MemoryMaintenance extends FetchQMaintenance {
         this.list = []
 
         this.settings.tolerance = 5
+        // console.log('***', this.client.driver.config)
+        // this.workerSettings.sleep = 25
 
         return super.init()
     }

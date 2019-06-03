@@ -2,10 +2,10 @@ import { FetchQInit } from './interfaces.fetchq-init'
 import { FetchQWorker } from './worker.class'
 
 export class FetchQQueue extends FetchQInit {
-    constructor (name, client) {
+    constructor (client, name) {
         super()
-        this.name = name
         this.client = client
+        this.name = name
 
         this.settings = {}
         this.workers = []

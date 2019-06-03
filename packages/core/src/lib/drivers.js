@@ -40,5 +40,5 @@ export const createDriver = (config = {}, client) => {
         ? type
         : getDriver(type)
 
-    return new Driver(driverConfig, client)
+    return new Driver(client, driverConfig)
 }

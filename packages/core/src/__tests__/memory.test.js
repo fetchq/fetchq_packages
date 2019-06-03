@@ -389,26 +389,28 @@ describe('FetchQ - in-memory driver', () => {
     })
 
     describe(`Client management queue`, () => {
-        test(`It should run management tasks`, async () => {
-
-            const client = createClient({
-                mntWorkerDelay: 0,
-                mntWorkerSleep: 25,
-            }, { name: 't2' })
+        test(`mnt should make pending documents`, async () => {
+            const client = createClient({}, {
+                name: 't2',
+                mntWorkerDelay: 1,
+                mntWorkerSleep: 1,
+            })
 
             const q1 = client.ref('q1')
             await q1.applySettings({
-                mntMakePendingDelay: '5ms',
+                mntMakePendingDelay: '1ms',
+                mntKillOrphanDelay: '1ms',
+                mntRescheduleOrphanDelay: '1ms',
             })
 
-            await q1.push([{ subject: 'foo', nextIteration: '5ms' }])
-
+            await q1.push([{ subject: 'foo', nextIteration: '1ms' }])
             expect((await q1.pick()).length).toBe(0)
-            await pause(500)
 
-            // await q1.mntMakePending()
+            // times goes by, meanwhile the maintenance queue should move stuff
+            // from scheduled to be pending
+            await pause(5)
+
             expect((await q1.pick()).length).toBe(1)
-
             await client.destroy()
         })
     })
