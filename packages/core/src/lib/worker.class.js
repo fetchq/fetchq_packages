@@ -4,6 +4,10 @@ export class FetchQWorker {
         this.queue = queue
         this.handler = handler
 
+        // Log references names to perform accurate logging during destroying cycles
+        this.queueName = queue.name
+        this.clientName = queue.client.name
+
         this.delay = settings.delay || 0
         this.sleep = settings.sleep || 1000
         this.batch = settings.batch || 1
@@ -11,6 +15,7 @@ export class FetchQWorker {
         this.docs = []
 
         this.isRunning = false
+        this.isPaused = false
         this.isSleeping = false
         this.__timeout = null
 
@@ -37,13 +42,21 @@ export class FetchQWorker {
 
     async destroy () {
         await this.stop()
+        this.destroyed = true
+        this.docs = null
     }
 
     async pause () {
         clearTimeout(this.__timeout)
+        this.isRunning = false
+        this.isPaused = true
     }
 
-    async resume () {}
+    async resume () {
+        this.isRunning = true
+        this.isPaused = false
+        return this.loop()
+    }
 
     async fetchDocs () {
         this.docs = [
@@ -112,10 +125,24 @@ export class FetchQWorker {
         })
 
         // perform the requested action
+        //
+        // it could fail if the worker handler resolves after the instance was destroyed
+        // in that case the document will become a genuine orphan and we silence the
+        // error.
+        //
+        // probably we need to log out some stuff to the stdout, but no need to trigger
+        // a real error
         try {
             await action.handler()
         } catch (err) {
-            console.log('Could not perform action', action)
+            if (this.destroyed === true) {
+                // @TODO: handle better logging
+                console.log(`Could not perform "${this.clientName}/${this.queueName}/${action.name}()" - ${err.message}`)
+            } else {
+                const error = new Error(`Could not perform "${this.clientName}/${this.queueName}/${action.name}()" - ${err.message}`)
+                error.originalError = err
+                throw error
+            }
         }
 
         this.__timeout = setTimeout(() => this.loop(), this.delay)

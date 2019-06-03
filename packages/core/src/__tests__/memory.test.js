@@ -5,11 +5,13 @@ import { addTime } from '../lib/dates'
 
 const pause = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms))
 
-const createClient = () =>
+const createClient = (driverSettings = {}, otherSettings = {}) =>
     new FetchqClient({
         driver: {
             type: MemoryDriver,
+            ...driverSettings,
         },
+        ...otherSettings,
     })
 
 const queueStatus = (queue, isReady) =>
@@ -26,7 +28,10 @@ describe('FetchQ - in-memory driver', () => {
     let client = null
 
     beforeEach(() => {
-        client = createClient()
+        client = createClient({}, {
+            name: 'generic-test',
+            runMaintenance: false,
+        })
     })
 
     afterEach(async () => {
@@ -46,6 +51,21 @@ describe('FetchQ - in-memory driver', () => {
     test('A queue should kick the client initialization chain', async () => {
         await client.ref('q1').isReady()
         expect(client.status).toBe(2)
+    })
+    
+    test(`Clients should work independently from one another`, async () => {
+        const c1 = createClient({}, { name: 'c1', runMaintenance: false })
+        const c2 = createClient({}, { name: 'c2', runMaintenance: false })
+        
+        await Promise.all([
+            c1.ref('q1').push([{ subject: 'd1' }]),
+            c2.ref('q2').push([{ subject: 'd1' }]),
+        ])
+        
+        await Promise.all([
+            c1.destroy(),
+            c2.destroy(),
+        ])
     })
 
     test('A queue should be able to ingest a document', async () => {
@@ -247,16 +267,24 @@ describe('FetchQ - in-memory driver', () => {
     })
 
     describe(`Maintenance`, () => {
+        let c1 = null
         let q1 = null
 
         beforeEach(async () => {
-            q1 = client.ref('q1')
+            c1 = createClient({}, {
+                name: 'maintenance-test',
+                runMaintenance: false,
+            })
+
+            q1 = c1.ref('q1')
             await q1.push([
                 { subject: 'd1', nextIteration: addTime('now') },
                 { subject: 'd2', nextIteration: addTime('now', '15ms') },
                 { subject: 'd3', nextIteration: addTime('now', -1000) },
             ])    
         })
+
+        afterEach(() => c1.destroy())
 
         test(`It should change a document status from PLANNED to PENDING`, async () => {
             expect(await q1.pick({ limit: 10 })).toHaveLength(2)
@@ -277,7 +305,7 @@ describe('FetchQ - in-memory driver', () => {
         test(`It should kill documents based on tolerance`, async () => {
             await q1.applySettings({ tolerance: 0 })
             await q1.pick({ limit: 1, lock: '1ms' })
-            await pause(1)
+            await pause(10)
             expect(await q1.mntRescheduleOrphans()).toEqual({ affected: 0 })
             expect(await q1.mntKillOrphans()).toEqual({ affected: 1 })
         })
@@ -362,11 +390,25 @@ describe('FetchQ - in-memory driver', () => {
 
     describe(`Client management queue`, () => {
         test(`It should run management tasks`, async () => {
-            const client = createClient()
-            await client.ref('q1').push([{ subject: 'foo' }])
-            console.log('client ready')
 
-            await pause(50)
+            const client = createClient({
+                mntWorkerDelay: 0,
+                mntWorkerSleep: 25,
+            }, { name: 't2' })
+
+            const q1 = client.ref('q1')
+            await q1.applySettings({
+                mntMakePendingDelay: '5ms',
+            })
+
+            await q1.push([{ subject: 'foo', nextIteration: '5ms' }])
+
+            expect((await q1.pick()).length).toBe(0)
+            await pause(500)
+
+            // await q1.mntMakePending()
+            expect((await q1.pick()).length).toBe(1)
+
             await client.destroy()
         })
     })

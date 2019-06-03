@@ -5,6 +5,8 @@ import { FetchQInit, EVENT_READY, STATUS_INITIALIZING, STATUS_INITIALIZED } from
 export class FetchqClient extends FetchQInit {
     constructor (config = {}) {
         super()
+        this.name = config.name || 'client-jdoe'
+        this.runMaintenance = config.runMaintenance !== false
         this.driver = createDriver(config.driver, this)
     }
 
@@ -17,9 +19,12 @@ export class FetchqClient extends FetchQInit {
     }
 
     async destroy () {
-        super.destroy()
+        // console.log(this.name, 'destroy')
+        await super.destroy()
+        // console.log('client.destroy().driver()', this.name)
         await this.driver.destroy()
         this.driver = null
+        // console.log('client--destroyed', this.name)
     }
 
     ref = queueName => this.driver.ref(queueName)

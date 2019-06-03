@@ -13,9 +13,21 @@ export class FetchQQueue extends FetchQInit {
 
     async init () {
         await this.client.driver.maintenance.push([
-            { subject: 'mnt' }, // run generic maintenance
-            { subject: 'kll' }, // collect dead documents
-            { subject: 'orp' }, // reschedule orphans documents
+            // transition planned>pending
+            { 
+                subject: `pnd::${this.name}`,
+                payload: { delay: this.settings.mntMakePendingDelay || '3s' },
+            },
+            // collect dead documents
+            {
+                subject: `kll::${this.name}`,
+                payload: { delay: this.settings.mntKillOrphanDelay || '3s' },
+            },
+            // reschedule orphans documents
+            {
+                subject: `orp::${this.name}`,
+                payload: { delay: this.settings.mntRescheduleOrphanDelay || '3s' },
+            },
         ])
 
         return super.init()
@@ -128,6 +140,7 @@ export class FetchQQueue extends FetchQInit {
 
     async destroy () {
         await Promise.all(this.workers.map(worker => worker.destroy()))
+        return super.destroy()
     }
 }
 

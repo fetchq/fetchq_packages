@@ -18,7 +18,6 @@ export class FetchQDriver extends FetchQInit {
     }
 
     async init () {
-        // console.log('INIT DRIVER')
         this.maintenance = new this.maintenanceConstructor(this.client)
         await this.maintenance.init()
 
@@ -34,6 +33,8 @@ export class FetchQDriver extends FetchQInit {
     }
 
     async destroy () {
+        // console.log(this.client.name, 'destroy driver')
+        this.maintenance && await this.maintenance.destroy()
         await Promise.all(Object.values(this.queues).map(queue => queue.destroy()))
         return super.destroy()
     }
